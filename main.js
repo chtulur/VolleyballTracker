@@ -138,7 +138,6 @@ const teamScores = team => {
   team === 'topHalf' ? topTeam.score() : bottomTeam.score()
 
   refreshScores(topTeam, bottomTeam)
-  fillOutTable()
   evaluate(topTeam, bottomTeam)
 }
 
@@ -151,71 +150,61 @@ const evaluate = (top, bottom) => {
     bottom.players[1],
   ]
 
+  hierarchy.sort(player => player.score)
+  console.log(hierarchy)
+
   hierarchy.map((player, i) => {
     if (i < 3 && player.score === hierarchy[i + 1].score)
       duplicates.push(player.score)
   })
   console.log(duplicates)
 
-  hierarchy.sort(player => player.score)
-  console.log(hierarchy)
-
   let strongest = hierarchy[0]
   let secondStrongest = hierarchy[1]
   let weakest = hierarchy[hierarchy.length - 1]
   let secondWeakest = hierarchy[hierarchy.length - 2]
+  let winningTeam = hierarchy.find(player => player.justScored).team
+
+  console.log('Winning team is: ', winningTeam)
+
+  /*
+  When pair-pair and stronger team won:
+  2 1
+  2 1
+  Swap and strong team leaves
+  */
+  if (
+    duplicates.length === 2 && // we know it's either 3 same or pair-pair same or 2,1 - 2,1
+    duplicates[0] !== duplicates[1] && //we know that pair-pair or 2,1 - 2,1
+    top.players[0].score === top.players[1].score && // we know that pair-pair
+    ((top.players[0].score > bottom.players[0].score && top.justScored) ||
+      (bottom.players[0].score > top.players[0].score && bottom.justScored)) //this shit just shows if top or bottom won and they have the higher score
+  ) {
+    strongest = Math.random() <= 0.5 ? strongest : secondStrongest
+    weakest = Math.random() <= 0.5 ? weakest : secondWeakest
+    swapTeam(strongest, weakest)
+    winnersLeave(top, bottom)
+  }
+
+  // When pair-x:
+  // 3 1
+  // 3 2
+
+  // 3 3
+  // 1 2
 
   // if all are equal
-  if (duplicates.length === 3) {
-    if (top.justScored) {
-      teamMovesOffTheField(bottom)
-      nextTeam(bottom)
-      populateField(top, currentTeams[1])
-    } else {
-      teamMovesOffTheField(top)
-      nextTeam(top)
-      populateField(bottom, currentTeams[1])
-    }
-
-    //3 lowests are equal
-    // } else if (counter === 3 && hierarchy[length - 1] > hierarchy[length - 2]) {
-    //if 3 weaker scores are equal
-    //if the strongest player's team scored
-    //if the weaker team scored
-    //3 highest are equal
-    // } else if (counter === 3 && hierarchy[0] > hierarchy[1]) {
-    //if 3 strong scores are equal
-    //if the weaker team scored, they stay on the field
-    //1 1 *
-    //0 0
-  } else if (
-    duplicates.length === 2 &&
-    strongest.justScored &&
-    secondStrongest.score === strongest.score &&
-    strongest.team === secondStrongest.team &&
-    weakest.score === secondWeakest.score
-  ) {
-    //randomly select from top and bottom and just swap them. The scoring team has to leave.
-
-    let selectedStrong = Math.random() <= 0.5 ? strongest : secondStrongest
-
-    let selectedWeak = Math.random() <= 0.5 ? weakest : secondWeakest
-
-    swapTeam(selectedStrong, selectedWeak)
-
-    if (top.justScored) {
-      teamMovesOffTheField(bottom)
-      nextTeam(top)
-      populateField(bottom, currentTeams[1])
-    } else {
-      teamMovesOffTheField(top)
-      nextTeam(top)
-      populateField(bottom, currentTeams[1])
-    }
-
-    //pick a strong player randomly
-    //pick the weakest player
-    //pick the weakest player randomly if scores are the same
+  // or three are equal just do this. There are no swaps, winning team can just stay.
+  //also   2 2
+  //       1 1 winners just stay
+  //
+  //       2 1
+  //       2 1 winners only stay if weaker won
+  //and
+  //       3 3
+  //       1 2 winners stay
+  else {
+    winnersStay(top, bottom)
   }
 
   fillOutTable()
@@ -234,6 +223,30 @@ const swapTeam = (strong, weak) => {
 
   strongsTeam.players[strongIndex] = weak
   weaksTeam.players[weakIndex] = strong
+}
+
+const winnersStay = (top, bottom) => {
+  if (top.justScored) {
+    teamMovesOffTheField(bottom)
+    nextTeam(bottom)
+    populateField(currentTeams[0], currentTeams[1]) //currentTeams are always in order
+  } else {
+    teamMovesOffTheField(top)
+    nextTeam(top)
+    populateField(currentTeams[0], currentTeams[1])
+  }
+}
+
+const winnersLeave = (top, bottom) => {
+  if (top.justScored) {
+    teamMovesOffTheField(top)
+    nextTeam(top)
+    populateField(currentTeams[0], currentTeams[1])
+  } else {
+    teamMovesOffTheField(bottom)
+    nextTeam(bottom)
+    populateField(currentTeams[0], currentTeams[1])
+  }
 }
 
 const nextTeam = previousTeam => {
