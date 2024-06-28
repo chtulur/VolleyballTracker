@@ -1,0 +1,45 @@
+.field {
+  height: 400px;
+  width: 300px;
+}
+
+.player {
+  display: inline-block;
+  height: 50px;
+  width: 50px;
+  border-radius: 50%;
+  background-color: aquamarine;
+}
+
+.playerNameTop {
+  text-align: center;
+  position: relative;
+  top: 60px;
+  height: 20px;
+}
+
+.playerNameBottom {
+  text-align: center;
+  position: relative;
+  top: -40px;
+  height: 20px;
+}
+
+.roundTracker {
+  top: 10px;
+  left: 20px;
+}
+
+.winBtnTop {
+  top: 65px;
+  left: -200px;
+}
+
+.winBtnBottom {
+  top: 70px;
+  left: -92px;
+}
+
+.halfField:active {
+  background-color: rgba(0, 0, 0, 0.1);
+}
