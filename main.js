@@ -9,6 +9,7 @@ const topPlayers = Array.from(document.querySelectorAll('.playerNameTop'))
 const bottomPlayers = Array.from(document.querySelectorAll('.playerNameBottom'))
 
 let currentRound = 1
+const winnersStay = true
 const roundTracker = document.querySelector('.roundTracker')
 
 const currentPlayers = [
@@ -183,9 +184,10 @@ const evaluate = (top, bottom) => {
     strongest = Math.random() <= 0.5 ? strongest : secondStrongest
     weakest = Math.random() <= 0.5 ? weakest : secondWeakest
     swapTeam(strongest, weakest)
-    winnersLeave(top, bottom)
+    oneTeamLeavesTheField(top, bottom, !winnersStay)
   }
-
+  // else if (duplicates.length === 1 &&
+  //   top.players[0].score === top.players[1].score && // )
   // When pair-x:
   // 3 1
   // 3 2
@@ -204,7 +206,7 @@ const evaluate = (top, bottom) => {
   //       3 3
   //       1 2 winners stay
   else {
-    winnersStay(top, bottom)
+    oneTeamLeavesTheField(top, bottom, winnersStay)
   }
 
   fillOutTable()
@@ -225,28 +227,18 @@ const swapTeam = (strong, weak) => {
   weaksTeam.players[weakIndex] = strong
 }
 
-const winnersStay = (top, bottom) => {
-  if (top.justScored) {
-    teamMovesOffTheField(bottom)
-    nextTeam(bottom)
-    populateField(currentTeams[0], currentTeams[1]) //currentTeams are always in order
-  } else {
-    teamMovesOffTheField(top)
-    nextTeam(top)
-    populateField(currentTeams[0], currentTeams[1])
-  }
-}
+const oneTeamLeavesTheField = (top, bottom, doesWinnerStay) => {
+  let leavingTeam
 
-const winnersLeave = (top, bottom) => {
   if (top.justScored) {
-    teamMovesOffTheField(top)
-    nextTeam(top)
-    populateField(currentTeams[0], currentTeams[1])
+    leavingTeam = doesWinnerStay ? bottom : top
   } else {
-    teamMovesOffTheField(bottom)
-    nextTeam(bottom)
-    populateField(currentTeams[0], currentTeams[1])
+    leavingTeam = doesWinnerStay ? top : bottom
   }
+
+  teamMovesOffTheField(leavingTeam)
+  nextTeam(leavingTeam)
+  populateField(currentTeams[0], currentTeams[1])
 }
 
 const nextTeam = previousTeam => {
