@@ -3,11 +3,13 @@ export default class Player {
   id
   name
   team
-  score = 0
+  score
   justScored = false
+  roundsParticipatedIn = 0
 
-  constructor(name) {
+  constructor(name, score = 0) {
     this.name = name
+    this.score = score
     this.team = 0
     this.id = Player.ID
     Player.ID++

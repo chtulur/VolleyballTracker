@@ -4,6 +4,7 @@ export default class Team {
   teamNumber
   active = false
   justScored = false
+  teamScore = 0
 
   constructor(playerI, playerII, teamNumber) {
     this.teamNumber = teamNumber
@@ -31,5 +32,21 @@ export default class Team {
   resetJustScored() {
     this.players.map(player => (player.justScored = false))
     this.justScored = false
+  }
+
+  calculateTeamScore() {
+    return this.players[0].score + this.players[1].score
+  }
+
+  takeTopSide() {
+    this.side = 'top'
+  }
+
+  takeBottomSide() {
+    this.side = 'bottom'
+  }
+
+  participate() {
+    this.players.forEach(player => player.roundsParticipatedIn++)
   }
 }

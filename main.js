@@ -13,12 +13,12 @@ const winnersStay = true
 const roundTracker = document.querySelector('.roundTracker')
 
 const currentPlayers = [
-  new Player('Gergo'),
-  new Player('Erika'),
-  new Player('Jani'),
-  new Player('Laci'),
-  new Player('Judit'),
-  new Player('Angela'),
+  new Player('Gergo', 1),
+  new Player('Erika', 1),
+  new Player('Jani', 1),
+  new Player('Laci', 1),
+  new Player('Judit', 2),
+  new Player('Angela', 2),
 ]
 let currentTeams = []
 
@@ -136,10 +136,14 @@ const teamScores = team => {
   let topTeam = currentTeams.find(team => team.side === 'top')
   let bottomTeam = currentTeams.find(team => team.side === 'bottom')
 
+  topTeam.participate()
+  bottomTeam.participate()
+
   team === 'topHalf' ? topTeam.score() : bottomTeam.score()
 
   refreshScores(topTeam, bottomTeam)
   evaluate(topTeam, bottomTeam)
+  console.log(currentTeams)
 }
 
 const evaluate = (top, bottom) => {
@@ -151,61 +155,77 @@ const evaluate = (top, bottom) => {
     bottom.players[1],
   ]
 
-  hierarchy.sort(player => player.score)
-  console.log(hierarchy)
-
+  hierarchy.sort((playerA, playerB) => playerA.score - playerB.score).reverse()
   hierarchy.map((player, i) => {
     if (i < 3 && player.score === hierarchy[i + 1].score)
       duplicates.push(player.score)
   })
-  console.log(duplicates)
 
-  let strongest = hierarchy[0]
   let secondStrongest = hierarchy[1]
   let weakest = hierarchy[hierarchy.length - 1]
-  let secondWeakest = hierarchy[hierarchy.length - 2]
-  let winningTeam = hierarchy.find(player => player.justScored).team
 
-  console.log('Winning team is: ', winningTeam)
+  let winningTeam = currentTeams.find(team => team.justScored)
+  let losingTeam = currentTeams.find(
+    team =>
+      team.teamNumber === hierarchy.find(player => !player.justScored).team
+  )
 
-  /*
-  When pair-pair and stronger team won:
-  2 1
-  2 1
-  Swap and strong team leaves
-  */
+  let threeEqualsSituation =
+    duplicates.length === 2 && duplicates[0] === duplicates[1]
+  let isPairPairSituation =
+    duplicates.length === 2 && duplicates[0] !== duplicates[1]
+  let scoreDifference =
+    winningTeam.calculateTeamScore() - losingTeam.calculateTeamScore()
+  let isScoreDiffMoreThanOne = scoreDifference > 1
+  let losingTeamWeakest = Math.min(
+    losingTeam.players[0].score,
+    losingTeam.players[1].score
+  )
+  let winningTeamWeakest = Math.min(
+    winningTeam.players[0].score,
+    winningTeam.players[1].score
+  )
+  let winningTeamStrongest = Math.max(
+    winningTeam.players[0].score,
+    winningTeam.players[1].score
+  )
+
   if (
-    duplicates.length === 2 && // we know it's either 3 same or pair-pair same or 2,1 - 2,1
-    duplicates[0] !== duplicates[1] && //we know that pair-pair or 2,1 - 2,1
-    top.players[0].score === top.players[1].score && // we know that pair-pair
-    ((top.players[0].score > bottom.players[0].score && top.justScored) ||
-      (bottom.players[0].score > top.players[0].score && bottom.justScored)) //this shit just shows if top or bottom won and they have the higher score
+    threeEqualsSituation &&
+    isScoreDiffMoreThanOne &&
+    winningTeamStrongest > winningTeamWeakest
   ) {
-    strongest = Math.random() <= 0.5 ? strongest : secondStrongest
-    weakest = Math.random() <= 0.5 ? weakest : secondWeakest
-    swapTeam(strongest, weakest)
     oneTeamLeavesTheField(top, bottom, !winnersStay)
-  }
-  // else if (duplicates.length === 1 &&
-  //   top.players[0].score === top.players[1].score && // )
-  // When pair-x:
-  // 3 1
-  // 3 2
+  } else if (
+    (isPairPairSituation && isScoreDiffMoreThanOne) ||
+    (duplicates.length < 2 && //one pair and no pair situations
+      isScoreDiffMoreThanOne &&
+      losingTeamWeakest !== winningTeamWeakest)
+  ) {
+    if (
+      //SPECIAL CASE
+      (hierarchy[3].score < hierarchy[2].score && //weakest player and the
+        hierarchy[0].score > hierarchy[1].score && //and the strongest
+        hierarchy[0].team === hierarchy[3].team) || //are in the same team
+      (hierarchy[0].score === hierarchy[1].score && //or the two strongest have
+        (hierarchy[1].team === hierarchy[3].team || //the same score
+          hierarchy[0].team === hierarchy[3].team)) // and either are in the same team as the weakest
+      //and they lost. We know that because of isScoreDiffMoreThanOne
+    ) {
+      oneTeamLeavesTheField(top, bottom, !winnersStay)
+    } else if (
+      hierarchy[3].score === hierarchy[2].score &&
+      hierarchy[3].team !== hierarchy[2].team
+    ) {
+      //the two weakest players have the same score and are not in the same team, it makes no sense to swap.
+    } else {
+      secondStrongest = determineWeakerPlayer(winningTeam)
+      weakest = determineWeakerPlayer(losingTeam)
 
-  // 3 3
-  // 1 2
-
-  // if all are equal
-  // or three are equal just do this. There are no swaps, winning team can just stay.
-  //also   2 2
-  //       1 1 winners just stay
-  //
-  //       2 1
-  //       2 1 winners only stay if weaker won
-  //and
-  //       3 3
-  //       1 2 winners stay
-  else {
+      swapTeam(secondStrongest, weakest)
+      oneTeamLeavesTheField(top, bottom, !winnersStay)
+    }
+  } else {
     oneTeamLeavesTheField(top, bottom, winnersStay)
   }
 
@@ -216,15 +236,35 @@ const evaluate = (top, bottom) => {
   bottom.resetJustScored()
 }
 
-const swapTeam = (strong, weak) => {
-  let strongsTeam = currentTeams.find(team => team.teamNumber === strong.team)
-  let strongIndex = strongsTeam.players.indexOf(strong)
+const swapTeam = (secondStrongest, weak) => {
+  let strongsTeam = currentTeams.find(
+    team => team.teamNumber === secondStrongest.team
+  )
+  let strongIndex = strongsTeam.players.indexOf(secondStrongest)
 
   let weaksTeam = currentTeams.find(team => team.teamNumber === weak.team)
   let weakIndex = weaksTeam.players.indexOf(weak)
 
+  weak.team = secondStrongest.team
+  secondStrongest.team = weaksTeam.teamNumber
+
   strongsTeam.players[strongIndex] = weak
-  weaksTeam.players[weakIndex] = strong
+  weaksTeam.players[weakIndex] = secondStrongest
+
+  alert(
+    'SWAP!! \n' +
+      secondStrongest.name +
+      ' <--> ' +
+      weak.name +
+      '\nStrong: ' +
+      strongsTeam.players[0].name +
+      ' | ' +
+      strongsTeam.players[1].name +
+      '.\nWeak: ' +
+      weaksTeam.players[0].name +
+      ' | ' +
+      weaksTeam.players[1].name
+  )
 }
 
 const oneTeamLeavesTheField = (top, bottom, doesWinnerStay) => {
@@ -238,6 +278,17 @@ const oneTeamLeavesTheField = (top, bottom, doesWinnerStay) => {
 
   teamMovesOffTheField(leavingTeam)
   nextTeam(leavingTeam)
+  alert(
+    'Leave: ' +
+      leavingTeam.players[0].name +
+      ' | ' +
+      leavingTeam.players[1].name +
+      '\n Next: ' +
+      currentTeams[1].players[0].name +
+      ' | ' +
+      currentTeams[1].players[1].name +
+      '. \n'
+  )
   populateField(currentTeams[0], currentTeams[1])
 }
 
@@ -254,6 +305,10 @@ const nextTeam = previousTeam => {
     currentTeams.unshift(stayingTeam)
   }
 
+  currentTeams[0].side === 'top'
+    ? currentTeams[1].takeTopSide()
+    : currentTeams[1].takeBottomSide()
+
   teamMovesOnTheField(currentTeams[1])
 }
 
@@ -266,6 +321,16 @@ const teamMovesOnTheField = team => {
   currentTeams[0].side === 'top' ? (team.side = 'bottom') : (team.side = 'top')
 
   team.activateTeam()
+}
+
+const determineWeakerPlayer = team => {
+  if (team.players[0].score > team.players[1].score) {
+    return team.players[1]
+  } else if (team.players[0].score < team.players[1].score) {
+    return team.players[0]
+  } else {
+    return Math.random() <= 0.5 ? team.players[0] : team.players[1]
+  }
 }
 
 const populateField = (...teams) => {
