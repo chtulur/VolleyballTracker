@@ -1,24 +1,38 @@
 import Player from './Player.js'
 import Team from './Team.js'
 
+const startBtn = document.querySelector('.startGame')
+const addBtn = document.querySelector('.addPlayrBtn')
+const randomizeBtn = document.querySelector('.randomizeGroupBtn')
 const playerNameInput = document.querySelector('.playerName')
 const playerList = document.querySelector('.playerList')
 const wrapper = document.querySelector('.container-sm')
 const tableBody = document.querySelector('tbody')
 const topPlayers = Array.from(document.querySelectorAll('.playerNameTop'))
 const bottomPlayers = Array.from(document.querySelectorAll('.playerNameBottom'))
+const undoBtn = document.querySelector('.undoBtn')
+const redoBtn = document.querySelector('.redoBtn')
 
+let isGameOnGoing = false
 let currentRound = 1
 const winnersStay = true
 const roundTracker = document.querySelector('.roundTracker')
 
-const currentPlayers = [
-  new Player('Gergo', 1),
-  new Player('Erika', 1),
-  new Player('Jani', 1),
-  new Player('Laci', 1),
-  new Player('Judit', 2),
-  new Player('Angela', 2),
+let isPlayerListChanged = false
+let teamsRandomized = false
+
+//Undo stuff
+let isUndoUsed = false
+let savedUndoActions = '[]'
+let savedRedoActions = '[]'
+
+let currentPlayers = [
+  new Player('Gergo', 0, 1),
+  new Player('Erika', 0, 1),
+  new Player('Jani', 0, 1),
+  new Player('Laci', 0, 1),
+  new Player('Judit', 0, 2),
+  new Player('Angela', 0, 2),
 ]
 let currentTeams = []
 
@@ -47,10 +61,22 @@ wrapper.addEventListener('click', e => {
     case 'bottomHalf':
       teamScores(event)
       break
+    case 'stopGame':
+      stopGame()
+      break
+    case 'undoBtn':
+      undo()
+      break
+    case 'redoBtn':
+      redo()
+      break
   }
 })
 
 const addPlayerToList = name => {
+  resetUndoRedoRounds()
+  isPlayerListChanged = true
+
   let player = new Player(name)
   //push to currentList array
   currentPlayers.push(player)
@@ -67,6 +93,8 @@ const addPlayerToList = name => {
 }
 
 const deletePlayer = e => {
+  resetUndoRedoRounds()
+  isPlayerListChanged = true
   //remove from HTML
   e.target.parentElement.parentElement.remove()
 
@@ -85,7 +113,13 @@ const randomizeTeams = () => {
   const shuffledArray = currentPlayers.sort((a, b) => 0.5 - Math.random())
 
   if (numberOfTeams === 0) {
+    teamsRandomized = true
+    resetUndoRedoRounds()
+
     for (let i = 0; i < currentPlayers.length; i += 2) {
+      shuffledArray[i].team = teamCounter
+      shuffledArray[i + 1].team = teamCounter
+
       currentTeams.push(
         new Team(shuffledArray[i], shuffledArray[i + 1], teamCounter)
       )
@@ -113,25 +147,19 @@ const fillOutTable = () => {
   })
 }
 
-const startGame = () => {
-  let firstTeam = currentTeams[0]
-  let secondTeam = currentTeams[1]
+const teamScores = team => {
+  if (!isGameOnGoing) return
 
-  firstTeam.side = 'top'
-  secondTeam.side = 'bottom'
-
-  for (let i = 0; i < 2; i++) {
-    currentTeams[i].activateTeam()
+  if (isUndoUsed) {
+    savedRedoActions = '[]'
+    saveUndoRedo('undo')
+    isUndoUsed = false
+  } else {
+    saveUndoRedo('undo')
   }
 
-  populateField(firstTeam, secondTeam)
-  fillOutTable()
-}
-
-const teamScores = team => {
-  //increment round counter and display it
   currentRound++
-  roundTracker.textContent = 'Round ' + currentRound
+  ronudDisplayRender()
 
   let topTeam = currentTeams.find(team => team.side === 'top')
   let bottomTeam = currentTeams.find(team => team.side === 'bottom')
@@ -143,7 +171,6 @@ const teamScores = team => {
 
   refreshScores(topTeam, bottomTeam)
   evaluate(topTeam, bottomTeam)
-  console.log(currentTeams)
 }
 
 const evaluate = (top, bottom) => {
@@ -368,6 +395,184 @@ const refreshScores = (topTeam, bottomTeam) => {
     bottomPlayerNode.textContent =
       bottomTeam.players[i].name + '(' + bottomTeam.players[i].score + ')'
   })
+}
+
+const startGame = () => {
+  if ((isPlayerListChanged && !teamsRandomized) || tableBody.innerHTML === '')
+    return alert('Randomize teams first')
+
+  const deleteBtns = Array.from(document.querySelectorAll('.deletePlayer'))
+  deleteBtns.forEach(btn => (btn.disabled = true))
+  startBtn.disabled = true
+  undoBtn.disabled = false
+  redoBtn.disabled = false
+  addBtn.disabled = true
+  isGameOnGoing = true
+  randomizeBtn.disabled = true
+  isPlayerListChanged = false
+  teamsRandomized = false
+
+  let firstTeam = currentTeams[0]
+  let secondTeam = currentTeams[1]
+
+  firstTeam.side = 'top'
+  secondTeam.side = 'bottom'
+
+  for (let i = 0; i < 2; i++) {
+    currentTeams[i].activateTeam()
+  }
+
+  populateField(firstTeam, secondTeam)
+  fillOutTable()
+}
+
+const stopGame = () => {
+  if (!isGameOnGoing) return
+
+  const deleteBtns = Array.from(document.querySelectorAll('.deletePlayer'))
+
+  startBtn.disabled = false
+  undoBtn.disabled = true
+  redoBtn.disabled = true
+  deleteBtns.forEach(btn => (btn.disabled = false))
+  addBtn.disabled = false
+  randomizeBtn.disabled = false
+  isGameOnGoing = false
+
+  topPlayers.map(top => (top.textContent = ''))
+  bottomPlayers.map(bottom => (bottom.textContent = ''))
+}
+
+const undo = () => {
+  if (savedUndoActions.length === 2) return
+  isUndoUsed = true
+  const parse = JSON.parse(savedUndoActions)
+
+  const lastAction = parse.pop()
+  savedUndoActions = JSON.stringify(parse)
+  saveUndoRedo('redo')
+
+  currentPlayers = []
+  currentTeams = []
+  lastAction.currentPlayers.map(player =>
+    currentPlayers.push(
+      new Player(
+        player.name,
+        player.team,
+        player.score,
+        player.justScored,
+        player.roundsParticipatedIn,
+        player.id
+      )
+    )
+  )
+  lastAction.currentTeams.map(team =>
+    currentTeams.push(
+      new Team(
+        currentPlayers.find(player => player.id === team.players[0].id),
+        currentPlayers.find(player => player.id === team.players[1].id),
+        team.teamNumber,
+        team.side,
+        team.active,
+        team.justScored,
+        team.teamScores
+      )
+    )
+  )
+  currentRound = lastAction.currentRound
+
+  fillOutTable()
+  populateField(currentTeams[0], currentTeams[1])
+  ronudDisplayRender()
+}
+
+const redo = () => {
+  if (savedRedoActions.length === 2) return
+  const parse = JSON.parse(savedRedoActions)
+
+  const forwardAction = parse.pop()
+  savedRedoActions = JSON.stringify(parse)
+  saveUndoRedo('undo')
+
+  currentPlayers = []
+  currentTeams = []
+  forwardAction.currentPlayers.map(player =>
+    currentPlayers.push(
+      new Player(
+        player.name,
+        player.team,
+        player.score,
+        player.justScored,
+        player.roundsParticipatedIn,
+        player.id
+      )
+    )
+  )
+  forwardAction.currentTeams.map(team =>
+    currentTeams.push(
+      new Team(
+        currentPlayers.find(player => player.id === team.players[0].id),
+        currentPlayers.find(player => player.id === team.players[1].id),
+        team.teamNumber,
+        team.side,
+        team.active,
+        team.justScored,
+        team.teamScores
+      )
+    )
+  )
+  currentRound = forwardAction.currentRound
+
+  fillOutTable()
+  populateField(currentTeams[0], currentTeams[1])
+  ronudDisplayRender()
+}
+
+const saveUndoRedo = undo_redo => {
+  if (undo_redo === 'undo' && savedUndoActions.length === 0)
+    savedUndoActions = JSON.stringify([
+      {
+        currentRound: currentRound,
+        currentPlayers: currentPlayers,
+        currentTeams: currentTeams,
+      },
+    ])
+  else if (undo_redo === 'undo' && savedUndoActions.length > 0) {
+    let parsed = JSON.parse(savedUndoActions)
+    parsed.push({
+      currentRound: currentRound,
+      currentPlayers: currentPlayers,
+      currentTeams: currentTeams,
+    })
+    savedUndoActions = JSON.stringify(parsed)
+  } else if (undo_redo === 'redo' && savedRedoActions.length === 0)
+    savedRedoActions = JSON.stringify([
+      {
+        currentRound: currentRound,
+        currentPlayers: currentPlayers,
+        currentTeams: currentTeams,
+      },
+    ])
+  else if (undo_redo === 'redo' && savedRedoActions.length > 0) {
+    let parsed = JSON.parse(savedRedoActions)
+    parsed.push({
+      currentRound: currentRound,
+      currentPlayers: currentPlayers,
+      currentTeams: currentTeams,
+    })
+    savedRedoActions = JSON.stringify(parsed)
+  }
+}
+
+const resetUndoRedoRounds = () => {
+  savedRedoActions = []
+  savedUndoActions = []
+  currentRound = 1
+  ronudDisplayRender()
+}
+
+const ronudDisplayRender = () => {
+  roundTracker.textContent = 'Round ' + currentRound
 }
 
 const newGame = () => {

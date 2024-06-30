@@ -1,16 +1,27 @@
 export default class Team {
   players = []
-  side
-  teamNumber
+  teamNumber = 0
+  side = ''
   active = false
   justScored = false
   teamScore = 0
 
-  constructor(playerI, playerII, teamNumber) {
-    this.teamNumber = teamNumber
+  constructor(
+    playerI,
+    playerII,
+    teamNumber,
+    side,
+    active,
+    justScored,
+    teamScore
+  ) {
     this.players.push(playerI)
     this.players.push(playerII)
-    this.players.map(player => (player.team = teamNumber))
+    this.teamNumber = teamNumber
+    this.side = side
+    this.active = active
+    this.justScored = justScored
+    this.teamScore = teamScore
   }
 
   activateTeam() {

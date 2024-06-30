@@ -4,14 +4,27 @@ export default class Player {
   name
   team
   score
-  justScored = false
-  roundsParticipatedIn = 0
+  justScored
+  roundsParticipatedIn
 
-  constructor(name, score = 0) {
+  constructor(
+    name,
+    team = 0,
+    score = 0,
+    justScored = false,
+    roundsParticipatedIn = 0,
+    id
+  ) {
     this.name = name
+    this.team = team
     this.score = score
-    this.team = 0
-    this.id = Player.ID
-    Player.ID++
+    this.justScored = justScored
+    this.roundsParticipatedIn = roundsParticipatedIn
+    if (id !== undefined) {
+      this.id = id
+    } else {
+      this.id = Player.ID
+      Player.ID++
+    }
   }
 }

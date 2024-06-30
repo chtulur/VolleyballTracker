@@ -74,7 +74,7 @@
           </li>
         </ul>
       </div>
-      <button class="randomizeGroupBtn btn btn-primary mt-3 mb-5">
+      <button class="randomizeGroupBtn btn btn-primary mt-3 mb-3">
         Randomize group
       </button>
 
@@ -99,23 +99,28 @@
       </ul>
 
       <hr class="border border-primary border-3 opacity-75" />
-      <div class="d-grid gap-2">
-        <button type="button" class="startGame btn btn-success mt-5">
-          Start game
-        </button>
+      <div class="container">
+        <div class="row">
+          <button type="button" class="startGame me-1 col btn btn-success mt-2">
+            Start game
+          </button>
+          <button type="button" class="stopGame ms-1 col btn btn-danger mt-2">
+            Stop
+          </button>
+        </div>
       </div>
 
       <p class="roundTracker mt-3 pl-4 position-relative h3">Round 1</p>
       <div class="gameArea d-flex justify-content-center">
-        <div class="field border border-info border-4 rounded mt-5">
+        <div class="field border border-info border-4 rounded mt-3">
           <div
             class="topHalf halfField border border-bottom border-info border-3 h-50 border-top-0 border-end-0 border-start-0 d-flex justify-content-around align-items-center pb-5"
           >
             <div class="topHalf player player1">
-              <div class="playerNameTop playerOnField">A</div>
+              <div class="topHalf playerNameTop playerOnField">A</div>
             </div>
             <div class="topHalf player player2">
-              <div class="playerNameTop playerOnField">B</div>
+              <div class="topHalf playerNameTop playerOnField">B</div>
             </div>
           </div>
 
@@ -123,12 +128,63 @@
             class="bottomHalf halfField h-50 d-flex justify-content-around align-items-center pt-5"
           >
             <div class="bottomHalf player player3">
-              <div class="playerNameBottom playerOnField">C</div>
+              <div class="bottomHalf playerNameBottom playerOnField">C</div>
             </div>
             <div class="bottomHalf player player4">
-              <div class="playerNameBottom playerOnField">D</div>
+              <div class="bottomHalf playerNameBottom playerOnField">D</div>
             </div>
           </div>
+        </div>
+      </div>
+      <div class="container undoRedoContainer">
+        <div class="row">
+          <div class="col-2"></div>
+          <button
+            disabled="true"
+            type="button"
+            class="undoBtn col btn btn-outline-secondary ms-3 mt-2"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              class="undoBtn bi bi-arrow-counterclockwise"
+              viewBox="0 0 16 16"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"
+              />
+              <path
+                d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"
+              />
+            </svg>
+          </button>
+          <div class="col-1"></div>
+          <button
+            disabled="true"
+            type="button"
+            class="redoBtn col btn btn-outline-secondary me-3 mt-2"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              class="redoBtn bi bi-arrow-clockwise"
+              viewBox="0 0 16 16"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"
+              />
+              <path
+                d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"
+              />
+            </svg>
+          </button>
+          <div class="col-2"></div>
         </div>
       </div>
     </div>
