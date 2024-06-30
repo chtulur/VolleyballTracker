@@ -1,7 +1,7 @@
 export default class Team {
   players = []
-  teamNumber = 0
-  side = ''
+  teamNumber
+  side
   active = false
   justScored = false
   teamScore = 0
@@ -9,11 +9,11 @@ export default class Team {
   constructor(
     playerI,
     playerII,
-    teamNumber,
-    side,
-    active,
-    justScored,
-    teamScore
+    teamNumber = 0,
+    side = '',
+    active = false,
+    justScored = false,
+    teamScore = 0
   ) {
     this.players.push(playerI)
     this.players.push(playerII)

@@ -1,11 +1,66 @@
 import Player from './Player.js'
 import Team from './Team.js'
 
+addEventListener('load', event => {
+  if (
+    localStorage.getItem('currentPlayers') === null ||
+    localStorage.getItem('currentPlayers') === ''
+  )
+    return
+
+  const parse = JSON.parse(localStorage.getItem('currentPlayers'))
+
+  currentPlayers = []
+  parse.map(player =>
+    currentPlayers.push(
+      new Player(
+        player.name,
+        player.team,
+        player.score,
+        player.justScored,
+        player.roundsParticipatedIn,
+        player.id
+      )
+    )
+  )
+  fillOutPlayers()
+
+  if (
+    localStorage.getItem('currentTeams') === null ||
+    localStorage.getItem('currentTeams') === ''
+  )
+    return
+
+  currentTeams = []
+  const teamParse = JSON.parse(localStorage.getItem('currentTeams'))
+
+  teamParse.map(team =>
+    currentTeams.push(
+      new Team(
+        currentPlayers.find(player => player.id === team.players[0].id),
+        currentPlayers.find(player => player.id === team.players[1].id),
+        team.teamNumber,
+        team.side,
+        team.active,
+        team.justScored,
+        team.teamScores
+      )
+    )
+  )
+
+  fillOutTable()
+
+  if (localStorage.getItem('currentRound') === null) return
+  currentRound = localStorage.getItem('currentRound')
+
+  ronudDisplayRender()
+})
+
+const playersHeader = document.querySelector('.playersHeader')
 const startBtn = document.querySelector('.startGame')
 const addBtn = document.querySelector('.addPlayrBtn')
 const randomizeBtn = document.querySelector('.randomizeGroupBtn')
 const playerNameInput = document.querySelector('.playerName')
-const playerList = document.querySelector('.playerList')
 const wrapper = document.querySelector('.container-sm')
 const tableBody = document.querySelector('tbody')
 const topPlayers = Array.from(document.querySelectorAll('.playerNameTop'))
@@ -13,6 +68,7 @@ const bottomPlayers = Array.from(document.querySelectorAll('.playerNameBottom'))
 const undoBtn = document.querySelector('.undoBtn')
 const redoBtn = document.querySelector('.redoBtn')
 
+let gameMode = 'balanced'
 let isGameOnGoing = false
 let currentRound = 1
 const winnersStay = true
@@ -26,14 +82,7 @@ let isUndoUsed = false
 let savedUndoActions = '[]'
 let savedRedoActions = '[]'
 
-let currentPlayers = [
-  new Player('Gergo', 0, 1),
-  new Player('Erika', 0, 1),
-  new Player('Jani', 0, 1),
-  new Player('Laci', 0, 1),
-  new Player('Judit', 0, 2),
-  new Player('Angela', 0, 2),
-]
+let currentPlayers = []
 let currentTeams = []
 
 wrapper.addEventListener('click', e => {
@@ -49,8 +98,6 @@ wrapper.addEventListener('click', e => {
       break
     case 'deletePlayer':
       deletePlayer(e)
-      break
-    case 'closePlayrs':
       break
     case 'startGame':
       startGame()
@@ -70,26 +117,40 @@ wrapper.addEventListener('click', e => {
     case 'redoBtn':
       redo()
       break
+    case 'form-select':
+      changeMode(e.target)
+      break
   }
 })
+
+const fillOutPlayers = () => {
+  currentPlayers.forEach(player => renderPlayerList(player.name))
+}
 
 const addPlayerToList = name => {
   resetUndoRedoRounds()
   isPlayerListChanged = true
 
   let player = new Player(name)
-  //push to currentList array
   currentPlayers.push(player)
+  localStorage.setItem('currentPlayers', JSON.stringify(currentPlayers))
+  renderPlayerList(name)
+}
 
-  //add to html
-  playerList.innerHTML += `
-    <li class="list-group-item">
-      <div class="d-flex justify-content-between align-items-center">
-        <span>${name}</span>
-        <button class="deletePlayer btn h-50 btn-danger">Delete</button>
-      </div>
-    </li>
-    `
+const renderPlayerList = name => {
+  playersHeader.insertAdjacentHTML(
+    'afterend',
+    `<li class="list-group-item">
+    <div class="d-flex justify-content-between align-items-center">
+      <span class="deletePlayer">${name}</span>
+      <button class="deletePlayer btn h-50 btn-outline-danger">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash3-fill" viewBox="0 0 16 16">
+          <path d="M11 1.5v1h3.5a.5.5 0 0 1 0 1h-.538l-.853 10.66A2 2 0 0 1 11.115 16h-6.23a2 2 0 0 1-1.994-1.84L2.038 3.5H1.5a.5.5 0 0 1 0-1H5v-1A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5m-5 0v1h4v-1a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5M4.5 5.029l.5 8.5a.5.5 0 1 0 .998-.06l-.5-8.5a.5.5 0 1 0-.998.06m6.53-.528a.5.5 0 0 0-.528.47l-.5 8.5a.5.5 0 0 0 .998.058l.5-8.5a.5.5 0 0 0-.47-.528M8 4.5a.5.5 0 0 0-.5.5v8.5a.5.5 0 0 0 1 0V5a.5.5 0 0 0-.5-.5"/>
+        </svg>
+      </button>
+    </div>
+  </li>`
+  )
 }
 
 const deletePlayer = e => {
@@ -104,6 +165,7 @@ const deletePlayer = e => {
   let index = currentPlayers.indexOf(playerName)
 
   currentPlayers.splice(index, 1)
+  localStorage.setItem('currentPlayers', JSON.stringify(currentPlayers))
 }
 
 const randomizeTeams = () => {
@@ -128,6 +190,8 @@ const randomizeTeams = () => {
         teamCounter++
       }
     }
+
+    localStorage.setItem('currentTeams', JSON.stringify(currentTeams))
   } else {
     alert('Odd number of players')
   }
@@ -170,7 +234,18 @@ const teamScores = team => {
   team === 'topHalf' ? topTeam.score() : bottomTeam.score()
 
   refreshScores(topTeam, bottomTeam)
-  evaluate(topTeam, bottomTeam)
+
+  switch (gameMode) {
+    case 'balanced':
+      evaluate(topTeam, bottomTeam)
+      break
+    case 'kingOfTheHill':
+      evaluateKingOfTheHill()
+      break
+  }
+
+  localStorage.setItem('currentTeams', JSON.stringify(currentTeams))
+  localStorage.setItem('currentRound', currentRound)
 }
 
 const evaluate = (top, bottom) => {
@@ -261,7 +336,11 @@ const evaluate = (top, bottom) => {
   //reset justScored
   top.resetJustScored()
   bottom.resetJustScored()
+
+  localStorage.setItem('currentTeams', JSON.stringify(currentTeams))
 }
+
+const evaluateKingOfTheHill = () => {}
 
 const swapTeam = (secondStrongest, weak) => {
   let strongsTeam = currentTeams.find(
@@ -575,6 +654,9 @@ const ronudDisplayRender = () => {
   roundTracker.textContent = 'Round ' + currentRound
 }
 
+const changeMode = e => {
+  gameMode = e.value
+}
 const newGame = () => {
   currentRound = 1
 }
