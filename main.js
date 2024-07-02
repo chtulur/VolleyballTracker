@@ -34,7 +34,6 @@ addEventListener('load', _ => {
   currentTeams = []
   const teamParse = JSON.parse(localStorage.getItem('currentTeams'))
 
-  console.log('Team Parse', teamParse)
   teamParse.map(team =>
     currentTeams.push(
       new Team(
@@ -52,6 +51,7 @@ addEventListener('load', _ => {
   fillOutTable()
 })
 
+const resetScoreBtn = document.querySelector('.resetScoreBtn')
 const playersHeader = document.querySelector('.playersHeader')
 const startBtn = document.querySelector('.startGame')
 const addBtn = document.querySelector('.addPlayrBtn')
@@ -75,8 +75,8 @@ let teamsRandomized = false
 
 //Undo stuff
 let isUndoUsed = false
-let savedUndoActions = '[]'
-let savedRedoActions = '[]'
+let savedUndoActions = JSON.stringify([]) //has to be inited as an array, to have the length 2
+let savedRedoActions = JSON.stringify([]) // which means it's empty
 
 let currentPlayers = []
 let currentTeams = []
@@ -116,6 +116,8 @@ wrapper.addEventListener('click', e => {
     case 'form-select':
       changeMode(e.target)
       break
+    case 'resetScoreBtn':
+      resetScores()
   }
 })
 
@@ -125,6 +127,8 @@ const fillOutPlayers = () => {
 
 const addPlayerToList = name => {
   if (name === '') return
+  if (currentPlayers.find(player => player.name === name) instanceof Player)
+    return alert('player already exists')
 
   resetUndoRedoRounds()
   isPlayerListChanged = true
@@ -156,19 +160,27 @@ const deletePlayer = e => {
   isPlayerListChanged = true
   //remove from HTML
 
-  if (e.target instanceof SVGPathElement)
-    e.target.parentElement.parentElement.parentElement.parentElement.remove()
-  else if (e.target instanceof SVGElement)
-    e.target.parentElement.parentElement.parentElement.remove()
-  else e.target.parentElement.parentElement.remove()
+  let element = e.target
 
-  //remove from array
-  let playerName =
-    e.target.parentElement.getElementsByTagName('span')[0].textContent
-  let index = currentPlayers.indexOf(playerName)
+  while (!(element instanceof HTMLLIElement)) {
+    element = element.parentElement
+  }
+
+  let playerName = element.getElementsByTagName('span')[0].textContent
+  let index = currentPlayers.findIndex(player => player.name === playerName)
 
   currentPlayers.splice(index, 1)
+  element.remove()
+
   localStorage.setItem('currentPlayers', JSON.stringify(currentPlayers))
+
+  //reset teams
+  //Don't reset if you remove a name that's not yet part of a team
+  //I want to be able to add new teams to an already ongoing game.
+  if (!currentTeams.some(team => team.findPlayer(playerName))) return
+  currentTeams = []
+  fillOutTable()
+  localStorage.setItem('currentTeams', JSON.stringify(currentTeams))
 }
 
 const randomizeTeams = () => {
@@ -218,7 +230,7 @@ const teamScores = team => {
   if (!isGameOnGoing) return
 
   if (isUndoUsed) {
-    savedRedoActions = '[]'
+    savedRedoActions = JSON.stringify([])
     saveUndoRedo('undo')
     isUndoUsed = false
   } else {
@@ -248,7 +260,6 @@ const teamScores = team => {
   }
 
   localStorage.setItem('currentTeams', JSON.stringify(currentTeams))
-  localStorage.setItem('currentRound', currentRound)
 }
 
 const evaluate = (top, bottom) => {
@@ -342,7 +353,6 @@ const evaluate = (top, bottom) => {
 
   localStorage.setItem('currentTeams', JSON.stringify(currentTeams))
   localStorage.setItem('currentPlayers', JSON.stringify(currentPlayers))
-  localStorage.setItem('currentRound', JSON.stringify(currentRound))
 }
 
 const evaluateKingOfTheHill = () => {}
@@ -493,6 +503,7 @@ const startGame = () => {
   undoBtn.disabled = false
   redoBtn.disabled = false
   addBtn.disabled = true
+  resetScoreBtn.disabled = true
   isGameOnGoing = true
   randomizeBtn.disabled = true
   isPlayerListChanged = false
@@ -517,6 +528,7 @@ const stopGame = () => {
 
   const deleteBtns = Array.from(document.querySelectorAll('.deletePlayer'))
 
+  resetScoreBtn.disabled = false
   startBtn.disabled = false
   undoBtn.disabled = true
   redoBtn.disabled = true
@@ -573,6 +585,7 @@ const undo = () => {
 }
 
 const redo = () => {
+  //yes length 2 is goofy as fuck. When these are emptied later, it has length of 2, which is "empty". I could reset the variable somehow but I like length === 2, so... deal with it
   if (savedRedoActions.length === 2) return
   const parse = JSON.parse(savedRedoActions)
 
@@ -663,4 +676,16 @@ const ronudDisplayRender = () => {
 
 const changeMode = e => {
   gameMode = e.value
+}
+
+const resetScores = () => {
+  currentPlayers.forEach(player => (player.score = 0))
+  fillOutTable()
+  currentRound = 1
+  ronudDisplayRender()
+
+  savedRedoActions = JSON.stringify([])
+  savedUndoActions = JSON.stringify([])
+
+  localStorage.setItem('currentPlayers', JSON.stringify(currentPlayers))
 }

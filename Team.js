@@ -60,4 +60,8 @@ export default class Team {
   participate() {
     this.players.forEach(player => player.roundsParticipatedIn++)
   }
+
+  findPlayer(name) {
+    return this.players.find(player => player.name === name)
+  }
 }
