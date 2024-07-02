@@ -1,7 +1,7 @@
 import Player from './Player.js'
 import Team from './Team.js'
 
-addEventListener('load', event => {
+addEventListener('load', _ => {
   if (
     localStorage.getItem('currentPlayers') === null ||
     localStorage.getItem('currentPlayers') === ''
@@ -34,6 +34,7 @@ addEventListener('load', event => {
   currentTeams = []
   const teamParse = JSON.parse(localStorage.getItem('currentTeams'))
 
+  console.log('Team Parse', teamParse)
   teamParse.map(team =>
     currentTeams.push(
       new Team(
@@ -49,11 +50,6 @@ addEventListener('load', event => {
   )
 
   fillOutTable()
-
-  if (localStorage.getItem('currentRound') === null) return
-  currentRound = localStorage.getItem('currentRound')
-
-  ronudDisplayRender()
 })
 
 const playersHeader = document.querySelector('.playersHeader')
@@ -128,6 +124,8 @@ const fillOutPlayers = () => {
 }
 
 const addPlayerToList = name => {
+  if (name === '') return
+
   resetUndoRedoRounds()
   isPlayerListChanged = true
 
@@ -144,8 +142,8 @@ const renderPlayerList = name => {
     <div class="d-flex justify-content-between align-items-center">
       <span class="deletePlayer">${name}</span>
       <button class="deletePlayer btn h-50 btn-outline-danger">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash3-fill" viewBox="0 0 16 16">
-          <path d="M11 1.5v1h3.5a.5.5 0 0 1 0 1h-.538l-.853 10.66A2 2 0 0 1 11.115 16h-6.23a2 2 0 0 1-1.994-1.84L2.038 3.5H1.5a.5.5 0 0 1 0-1H5v-1A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5m-5 0v1h4v-1a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5M4.5 5.029l.5 8.5a.5.5 0 1 0 .998-.06l-.5-8.5a.5.5 0 1 0-.998.06m6.53-.528a.5.5 0 0 0-.528.47l-.5 8.5a.5.5 0 0 0 .998.058l.5-8.5a.5.5 0 0 0-.47-.528M8 4.5a.5.5 0 0 0-.5.5v8.5a.5.5 0 0 0 1 0V5a.5.5 0 0 0-.5-.5"/>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="deletePlayer bi bi-trash3-fill" viewBox="0 0 16 16">
+          <path class="deletePlayer" d="M11 1.5v1h3.5a.5.5 0 0 1 0 1h-.538l-.853 10.66A2 2 0 0 1 11.115 16h-6.23a2 2 0 0 1-1.994-1.84L2.038 3.5H1.5a.5.5 0 0 1 0-1H5v-1A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5m-5 0v1h4v-1a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5M4.5 5.029l.5 8.5a.5.5 0 1 0 .998-.06l-.5-8.5a.5.5 0 1 0-.998.06m6.53-.528a.5.5 0 0 0-.528.47l-.5 8.5a.5.5 0 0 0 .998.058l.5-8.5a.5.5 0 0 0-.47-.528M8 4.5a.5.5 0 0 0-.5.5v8.5a.5.5 0 0 0 1 0V5a.5.5 0 0 0-.5-.5"/>
         </svg>
       </button>
     </div>
@@ -157,7 +155,12 @@ const deletePlayer = e => {
   resetUndoRedoRounds()
   isPlayerListChanged = true
   //remove from HTML
-  e.target.parentElement.parentElement.remove()
+
+  if (e.target instanceof SVGPathElement)
+    e.target.parentElement.parentElement.parentElement.parentElement.remove()
+  else if (e.target instanceof SVGElement)
+    e.target.parentElement.parentElement.parentElement.remove()
+  else e.target.parentElement.parentElement.remove()
 
   //remove from array
   let playerName =
@@ -338,6 +341,8 @@ const evaluate = (top, bottom) => {
   bottom.resetJustScored()
 
   localStorage.setItem('currentTeams', JSON.stringify(currentTeams))
+  localStorage.setItem('currentPlayers', JSON.stringify(currentPlayers))
+  localStorage.setItem('currentRound', JSON.stringify(currentRound))
 }
 
 const evaluateKingOfTheHill = () => {}
@@ -479,6 +484,8 @@ const refreshScores = (topTeam, bottomTeam) => {
 const startGame = () => {
   if ((isPlayerListChanged && !teamsRandomized) || tableBody.innerHTML === '')
     return alert('Randomize teams first')
+  if (currentTeams.length === 1)
+    return alert('There must be at least 2 teams to start a game')
 
   const deleteBtns = Array.from(document.querySelectorAll('.deletePlayer'))
   deleteBtns.forEach(btn => (btn.disabled = true))
@@ -657,8 +664,3 @@ const ronudDisplayRender = () => {
 const changeMode = e => {
   gameMode = e.value
 }
-const newGame = () => {
-  currentRound = 1
-}
-
-const clearList = () => {}
