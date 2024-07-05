@@ -1,6 +1,22 @@
 import Player from './Player.js'
 import Team from './Team.js'
 
+/**
+ * TODO:
+ * - Skip button
+ * - Use player participation to show statistics at the end of match
+ * - End game score can be set and game ends when a player reaches it. Think about ties
+ * - check if all the data is used for something in the existing objects.
+ * - Remove the alerts and create something visually more pleasing.
+ * - Add animations for teams leaving, switching and entering
+ * - Think about which team has the serve and find a way so also show that
+ *
+ * BIG:
+ * - Implement kind of the hill game mode
+ * - Maybe create another game mode
+ *
+ */
+
 const resetScoreBtn = document.querySelector('.resetScoreBtn')
 const playersHeader = document.querySelector('.playersHeader')
 const startBtn = document.querySelector('.startGame')
@@ -11,6 +27,7 @@ const wrapper = document.querySelector('.container-sm')
 const tableBody = document.querySelector('tbody')
 const topPlayers = Array.from(document.querySelectorAll('.playerNameTop'))
 const bottomPlayers = Array.from(document.querySelectorAll('.playerNameBottom'))
+// const topAndBottomPlayers = [topPlayers, bottomPlayers]
 const undoBtn = document.querySelector('.undoBtn')
 const redoBtn = document.querySelector('.redoBtn')
 
@@ -24,7 +41,7 @@ let isPlayerListChanged = false
 let teamsRandomized = false
 
 //Undo stuff
-let isUndoUsed = false
+let wasUndoUsed = false
 let savedUndoActions = JSON.stringify([]) //has to be inited as an array, to have the length 2
 let savedRedoActions = JSON.stringify([]) // which means it's empty
 
@@ -39,7 +56,6 @@ addEventListener('load', _ => {
     return
 
   const parse = JSON.parse(localStorage.getItem('currentPlayers'))
-
   playerParser(parse)
   fillOutPlayers()
 
@@ -51,7 +67,6 @@ addEventListener('load', _ => {
 
   const teamParse = JSON.parse(localStorage.getItem('currentTeams'))
   teamParser(teamParse)
-
   fillOutTable()
 })
 
@@ -132,8 +147,8 @@ const renderPlayerList = name => {
 const deletePlayer = e => {
   resetUndoRedoRounds()
   isPlayerListChanged = true
-  //remove from HTML
 
+  //remove from HTML
   let element = e.target
 
   while (!(element instanceof HTMLLIElement)) {
@@ -203,10 +218,10 @@ const fillOutTable = () => {
 const teamScores = team => {
   if (!isGameOnGoing) return
 
-  if (isUndoUsed) {
+  if (wasUndoUsed) {
     savedRedoActions = JSON.stringify([])
     saveUndoRedo('undo')
-    isUndoUsed = false
+    wasUndoUsed = false
   } else {
     saveUndoRedo('undo')
   }
@@ -217,6 +232,7 @@ const teamScores = team => {
   let topTeam = currentTeams.find(team => team.side === 'top')
   let bottomTeam = currentTeams.find(team => team.side === 'bottom')
 
+  //keeping track of player participation for statistics later
   topTeam.participate()
   bottomTeam.participate()
 
@@ -404,7 +420,7 @@ const nextTeam = previousTeam => {
     ? currentTeams[1].takeTopSide()
     : currentTeams[1].takeBottomSide()
 
-  teamMovesOnTheField(currentTeams[1])
+  teamMovesOnTheField(currentTeams[1]) //we know for sure it's the second team
 }
 
 const teamMovesOffTheField = team => {
@@ -414,7 +430,6 @@ const teamMovesOffTheField = team => {
 
 const teamMovesOnTheField = team => {
   currentTeams[0].side === 'top' ? (team.side = 'bottom') : (team.side = 'top')
-
   team.activateTeam()
 }
 
@@ -429,6 +444,7 @@ const determineWeakerPlayer = team => {
 }
 
 const populateField = (...teams) => {
+  //Thought about doing it with one loop, but I would rather keep the two sides separate.
   let index = teams[0].side === 'top' ? 0 : 1
 
   topPlayers.map(
@@ -454,6 +470,15 @@ const populateField = (...teams) => {
 }
 
 const refreshScores = (topTeam, bottomTeam) => {
+  /**TODO: Maybe this can be shortened */
+  // console.log(topAndBottomPlayers)
+  // topAndBottom.map((side, i) =>
+  //   topAndBottomPlayers[i].map((playerNode, j) => {
+  //     playerNode.textContent =
+  //       topAndBottom[i].players[j] + '(' + topTeam.players[j].score + ')'
+  //   })
+  // )
+
   topPlayers.map((topPlayerNode, i) => {
     topPlayerNode.textContent =
       topTeam.players[i].name + '(' + topTeam.players[i].score + ')'
@@ -517,7 +542,7 @@ const stopGame = () => {
 
 const undo = () => {
   if (savedUndoActions.length === 2) return
-  isUndoUsed = true
+  wasUndoUsed = true
   const parse = JSON.parse(savedUndoActions)
 
   const lastAction = parse.pop()
