@@ -1,56 +1,6 @@
 import Player from './Player.js'
 import Team from './Team.js'
 
-addEventListener('load', _ => {
-  if (
-    localStorage.getItem('currentPlayers') === null ||
-    localStorage.getItem('currentPlayers') === ''
-  )
-    return
-
-  const parse = JSON.parse(localStorage.getItem('currentPlayers'))
-
-  currentPlayers = []
-  parse.map(player =>
-    currentPlayers.push(
-      new Player(
-        player.name,
-        player.team,
-        player.score,
-        player.justScored,
-        player.roundsParticipatedIn,
-        player.id
-      )
-    )
-  )
-  fillOutPlayers()
-
-  if (
-    localStorage.getItem('currentTeams') === null ||
-    localStorage.getItem('currentTeams') === ''
-  )
-    return
-
-  currentTeams = []
-  const teamParse = JSON.parse(localStorage.getItem('currentTeams'))
-
-  teamParse.map(team =>
-    currentTeams.push(
-      new Team(
-        currentPlayers.find(player => player.id === team.players[0].id),
-        currentPlayers.find(player => player.id === team.players[1].id),
-        team.teamNumber,
-        team.side,
-        team.active,
-        team.justScored,
-        team.teamScores
-      )
-    )
-  )
-
-  fillOutTable()
-})
-
 const resetScoreBtn = document.querySelector('.resetScoreBtn')
 const playersHeader = document.querySelector('.playersHeader')
 const startBtn = document.querySelector('.startGame')
@@ -80,6 +30,30 @@ let savedRedoActions = JSON.stringify([]) // which means it's empty
 
 let currentPlayers = []
 let currentTeams = []
+
+addEventListener('load', _ => {
+  if (
+    localStorage.getItem('currentPlayers') === null ||
+    localStorage.getItem('currentPlayers') === ''
+  )
+    return
+
+  const parse = JSON.parse(localStorage.getItem('currentPlayers'))
+
+  playerParser(parse)
+  fillOutPlayers()
+
+  if (
+    localStorage.getItem('currentTeams') === null ||
+    localStorage.getItem('currentTeams') === ''
+  )
+    return
+
+  const teamParse = JSON.parse(localStorage.getItem('currentTeams'))
+  teamParser(teamParse)
+
+  fillOutTable()
+})
 
 wrapper.addEventListener('click', e => {
   let event = e.target.classList[0]
@@ -550,33 +524,9 @@ const undo = () => {
   savedUndoActions = JSON.stringify(parse)
   saveUndoRedo('redo')
 
-  currentPlayers = []
-  currentTeams = []
-  lastAction.currentPlayers.map(player =>
-    currentPlayers.push(
-      new Player(
-        player.name,
-        player.team,
-        player.score,
-        player.justScored,
-        player.roundsParticipatedIn,
-        player.id
-      )
-    )
-  )
-  lastAction.currentTeams.map(team =>
-    currentTeams.push(
-      new Team(
-        currentPlayers.find(player => player.id === team.players[0].id),
-        currentPlayers.find(player => player.id === team.players[1].id),
-        team.teamNumber,
-        team.side,
-        team.active,
-        team.justScored,
-        team.teamScores
-      )
-    )
-  )
+  playerParser(lastAction.currentPlayers)
+  teamParser(lastAction.currentTeams)
+
   currentRound = lastAction.currentRound
 
   fillOutTable()
@@ -593,33 +543,9 @@ const redo = () => {
   savedRedoActions = JSON.stringify(parse)
   saveUndoRedo('undo')
 
-  currentPlayers = []
-  currentTeams = []
-  forwardAction.currentPlayers.map(player =>
-    currentPlayers.push(
-      new Player(
-        player.name,
-        player.team,
-        player.score,
-        player.justScored,
-        player.roundsParticipatedIn,
-        player.id
-      )
-    )
-  )
-  forwardAction.currentTeams.map(team =>
-    currentTeams.push(
-      new Team(
-        currentPlayers.find(player => player.id === team.players[0].id),
-        currentPlayers.find(player => player.id === team.players[1].id),
-        team.teamNumber,
-        team.side,
-        team.active,
-        team.justScored,
-        team.teamScores
-      )
-    )
-  )
+  playerParser(forwardAction.currentPlayers)
+  teamParser(forwardAction.currentTeams)
+
   currentRound = forwardAction.currentRound
 
   fillOutTable()
@@ -688,4 +614,39 @@ const resetScores = () => {
   savedUndoActions = JSON.stringify([])
 
   localStorage.setItem('currentPlayers', JSON.stringify(currentPlayers))
+}
+
+const playerParser = parse => {
+  currentPlayers = []
+
+  parse.map(player =>
+    currentPlayers.push(
+      new Player(
+        player.name,
+        player.team,
+        player.score,
+        player.justScored,
+        player.roundsParticipatedIn,
+        player.id
+      )
+    )
+  )
+}
+
+const teamParser = parse => {
+  currentTeams = []
+
+  parse.map(team =>
+    currentTeams.push(
+      new Team(
+        currentPlayers.find(player => player.id === team.players[0].id),
+        currentPlayers.find(player => player.id === team.players[1].id),
+        team.teamNumber,
+        team.side,
+        team.active,
+        team.justScored,
+        team.teamScores
+      )
+    )
+  )
 }
