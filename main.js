@@ -3,7 +3,6 @@ import Team from './Team.js'
 
 /**
  * TODO:
- * - Skip button
  * - Use player participation to show statistics at the end of match
  * - End game score can be set and game ends when a player reaches it. Think about ties
  * - check if all the data is used for something in the existing objects.
@@ -27,11 +26,14 @@ const wrapper = document.querySelector('.container-sm')
 const tableBody = document.querySelector('tbody')
 const topPlayers = Array.from(document.querySelectorAll('.playerNameTop'))
 const bottomPlayers = Array.from(document.querySelectorAll('.playerNameBottom'))
-const fieldNodes = {topNodes: topPlayers, bottomNodes: bottomPlayers}
 const fieldNodesArr = [...topPlayers, ...bottomPlayers]
 const undoBtn = document.querySelector('.undoBtn')
 const redoBtn = document.querySelector('.redoBtn')
+const skipTop = document.querySelector('.skipTop')
+const skipBottom = document.querySelector('.skipBottom')
+const modalTitle = document.querySelector('.modal-title')
 
+let skippingTeam = ''
 let gameMode = 'balanced'
 let isGameOnGoing = false
 let currentRound = 1
@@ -43,8 +45,8 @@ let teamsRandomized = false
 
 //Undo stuff
 let wasUndoUsed = false
-let savedUndoActions = JSON.stringify([]) //has to be inited as an array, to have the length 2
-let savedRedoActions = JSON.stringify([]) // which means it's empty
+let savedUndoActions = '[]' //has to be inited as an array, to have the length 2
+let savedRedoActions = '[]' // which means it's empty
 
 let currentPlayers = []
 let currentTeams = []
@@ -58,7 +60,7 @@ addEventListener('load', _ => {
 
   const parse = JSON.parse(localStorage.getItem('currentPlayers'))
   playerParser(parse)
-  fillOutPlayers()
+  fillOutPlayerList()
 
   if (
     localStorage.getItem('currentTeams') === null ||
@@ -68,7 +70,7 @@ addEventListener('load', _ => {
 
   const teamParse = JSON.parse(localStorage.getItem('currentTeams'))
   teamParser(teamParse)
-  fillOutTable()
+  fillOutTeamTable()
 })
 
 wrapper.addEventListener('click', e => {
@@ -80,7 +82,7 @@ wrapper.addEventListener('click', e => {
       break
     case 'randomizeGroupBtn':
       randomizeTeams()
-      fillOutTable()
+      fillOutTeamTable()
       break
     case 'deletePlayer':
       deletePlayer(e)
@@ -108,10 +110,19 @@ wrapper.addEventListener('click', e => {
       break
     case 'resetScoreBtn':
       resetScores()
+    case 'skipBottom':
+      setModalHeader(e.target.classList[1])
+      break
+    case 'skipTop':
+      setModalHeader(e.target.classList[1])
+      break
+    case 'skipBtn':
+      skip()
+      break
   }
 })
 
-const fillOutPlayers = () => {
+const fillOutPlayerList = () => {
   currentPlayers.forEach(player => renderPlayerList(player.name))
 }
 
@@ -169,26 +180,30 @@ const deletePlayer = e => {
   //I want to be able to add new teams to an already ongoing game.
   if (!currentTeams.some(team => team.findPlayer(playerName))) return
   currentTeams = []
-  fillOutTable()
+  fillOutTeamTable()
   localStorage.setItem('currentTeams', JSON.stringify(currentTeams))
 }
 
 const randomizeTeams = () => {
   currentTeams = []
   let teamCounter = 1
-  const numberOfTeams = currentPlayers.length % 2
-  const shuffledArray = currentPlayers.sort((a, b) => 0.5 - Math.random())
+  const arePlayerseven = currentPlayers.length % 2 === 0
+  const shuffledPlayersArray = currentPlayers.sort(() => 0.5 - Math.random())
 
-  if (numberOfTeams === 0) {
+  if (arePlayerseven) {
     teamsRandomized = true
     resetUndoRedoRounds()
 
     for (let i = 0; i < currentPlayers.length; i += 2) {
-      shuffledArray[i].team = teamCounter
-      shuffledArray[i + 1].team = teamCounter
+      shuffledPlayersArray[i].team = teamCounter
+      shuffledPlayersArray[i + 1].team = teamCounter
 
       currentTeams.push(
-        new Team(shuffledArray[i], shuffledArray[i + 1], teamCounter)
+        new Team(
+          shuffledPlayersArray[i],
+          shuffledPlayersArray[i + 1],
+          teamCounter
+        )
       )
 
       if (i % 2 === 0) {
@@ -202,7 +217,7 @@ const randomizeTeams = () => {
   }
 }
 
-const fillOutTable = () => {
+const fillOutTeamTable = () => {
   tableBody.innerHTML = ''
 
   currentTeams.map(team => {
@@ -342,7 +357,7 @@ const evaluate = (top, bottom) => {
     oneTeamLeavesTheField(top, bottom, winnersStay)
   }
 
-  fillOutTable()
+  fillOutTeamTable()
 
   //reset justScored
   top.resetJustScored()
@@ -386,6 +401,7 @@ const swapTeam = (secondStrongest, weak) => {
   )
 }
 
+//TODO: I have to rethink this to make this more reusable for skipping a turn.
 const oneTeamLeavesTheField = (top, bottom, doesWinnerStay) => {
   let leavingTeam
 
@@ -497,7 +513,7 @@ const startGame = () => {
   secondTeam.activateTeam()
 
   populateField(firstTeam, secondTeam)
-  fillOutTable()
+  fillOutTeamTable()
 }
 
 const stopGame = () => {
@@ -536,7 +552,7 @@ const handleUndoRedoChanges = action => {
   teamParser(action.currentTeams)
   currentRound = action.currentRound
 
-  fillOutTable()
+  fillOutTeamTable()
   populateField(currentTeams[0], currentTeams[1])
   ronudDisplayRender()
 }
@@ -548,27 +564,31 @@ const saveUndoRedo = undo_redo => {
     currentTeams: currentTeams,
   }
 
-  let isFirstUndo = undo_redo === 'undo' && savedUndoActions.length === 0
-  let isFirstRedo = undo_redo === 'redo' && savedRedoActions.length === 0
-  let isUndo = undo_redo === 'undo' && savedUndoActions.length > 0
-  let isRedo = undo_redo === 'redo' && savedRedoActions.length > 0
+  //IIFE solution. Cool but less readable
+  if (undo_redo === 'undo')
+    savedUndoActions = JSON.stringify(
+      (parsed => (parsed.push(obj), parsed))(JSON.parse(savedUndoActions))
+    )
+  else
+    savedRedoActions = JSON.stringify(
+      (parsed => (parsed.push(obj), parsed))(JSON.parse(savedRedoActions))
+    )
 
-  if (isFirstUndo) savedUndoActions = JSON.stringify([obj])
-  else if (isUndo) {
-    let parsed = JSON.parse(savedUndoActions)
-    parsed.push(obj)
-    savedUndoActions = JSON.stringify(parsed)
-  } else if (isFirstRedo) savedRedoActions = JSON.stringify([obj])
-  else if (isRedo) {
-    let parsed = JSON.parse(savedRedoActions)
-    parsed.push(obj)
-    savedRedoActions = JSON.stringify(parsed)
-  }
+  //simple shit I can put back if I want and achieves the same
+  // if (undo_redo === 'undo') {
+  //   let parsed = JSON.parse(savedUndoActions)
+  //   parsed.push(obj)
+  //   savedUndoActions = JSON.stringify(parsed)
+  // } else {
+  //   let parsed = JSON.parse(savedRedoActions)
+  //   parsed.push(obj)
+  //   savedRedoActions = JSON.stringify(parsed)
+  // }
 }
 
 const resetUndoRedoRounds = () => {
-  savedRedoActions = []
-  savedUndoActions = []
+  savedRedoActions = '[]'
+  savedUndoActions = '[]'
   currentRound = 1
   ronudDisplayRender()
 }
@@ -617,10 +637,17 @@ const handleButtonDisables = () => {
   redoBtn.disabled = !redoBtn.disabled
   addBtn.disabled = !addBtn.disabled
   randomizeBtn.disabled = !randomizeBtn.disabled
+  skipBottom.disabled = !skipBottom.disabled
+  skipTop.disabled = !skipTop.disabled
 }
 
 const ronudDisplayRender = () => {
   roundTracker.textContent = 'Round ' + currentRound
+}
+
+const setModalHeader = side => {
+  skippingTeam = side
+  modalTitle.textContent = 'Skip ' + side + " team's turn"
 }
 
 const changeMode = e => {
@@ -633,7 +660,7 @@ const resetScores = () => {
     player.roundsParticipatedIn = 0
   })
 
-  fillOutTable()
+  fillOutTeamTable()
   currentRound = 1
   ronudDisplayRender()
 
@@ -641,4 +668,17 @@ const resetScores = () => {
   savedUndoActions = JSON.stringify([])
 
   localStorage.setItem('currentPlayers', JSON.stringify(currentPlayers))
+}
+
+const skip = () => {
+  let leavingTeam = currentTeams.find(team => team.side === skippingTeam)
+
+  //TODO: Clean this shit up and move them to a separate function
+  handleUndoUpdate() //this has to be first
+  teamMovesOffTheField(leavingTeam)
+  nextTeam(leavingTeam)
+  fillOutTeamTable()
+  populateField(currentTeams[0], currentTeams[1])
+
+  localStorage.setItem('currentTeams', JSON.stringify(currentTeams)) //best to leave local storage last
 }
