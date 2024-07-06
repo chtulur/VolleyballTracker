@@ -27,7 +27,8 @@ const wrapper = document.querySelector('.container-sm')
 const tableBody = document.querySelector('tbody')
 const topPlayers = Array.from(document.querySelectorAll('.playerNameTop'))
 const bottomPlayers = Array.from(document.querySelectorAll('.playerNameBottom'))
-// const topAndBottomPlayers = [topPlayers, bottomPlayers]
+const fieldNodes = {topNodes: topPlayers, bottomNodes: bottomPlayers}
+const fieldNodesArr = [...topPlayers, ...bottomPlayers]
 const undoBtn = document.querySelector('.undoBtn')
 const redoBtn = document.querySelector('.redoBtn')
 
@@ -217,14 +218,8 @@ const fillOutTable = () => {
 
 const teamScores = team => {
   if (!isGameOnGoing) return
-
-  if (wasUndoUsed) {
-    savedRedoActions = JSON.stringify([])
-    saveUndoRedo('undo')
-    wasUndoUsed = false
-  } else {
-    saveUndoRedo('undo')
-  }
+  //Order is important here for round tracking
+  handleUndoUpdate()
 
   currentRound++
   ronudDisplayRender()
@@ -232,14 +227,18 @@ const teamScores = team => {
   let topTeam = currentTeams.find(team => team.side === 'top')
   let bottomTeam = currentTeams.find(team => team.side === 'bottom')
 
+  //actualScoring
+  team === 'topHalf' ? topTeam.score() : bottomTeam.score()
+
   //keeping track of player participation for statistics later
   topTeam.participate()
   bottomTeam.participate()
 
-  team === 'topHalf' ? topTeam.score() : bottomTeam.score()
+  delegateGameModeEvaluation(topTeam, bottomTeam)
+  localStorage.setItem('currentTeams', JSON.stringify(currentTeams))
+}
 
-  refreshScores(topTeam, bottomTeam)
-
+const delegateGameModeEvaluation = (topTeam, bottomTeam) => {
   switch (gameMode) {
     case 'balanced':
       evaluate(topTeam, bottomTeam)
@@ -248,8 +247,16 @@ const teamScores = team => {
       evaluateKingOfTheHill()
       break
   }
+}
 
-  localStorage.setItem('currentTeams', JSON.stringify(currentTeams))
+const handleUndoUpdate = () => {
+  if (wasUndoUsed) {
+    savedRedoActions = JSON.stringify([])
+    saveUndoRedo('undo')
+    wasUndoUsed = false
+  } else {
+    saveUndoRedo('undo')
+  }
 }
 
 const evaluate = (top, bottom) => {
@@ -345,6 +352,7 @@ const evaluate = (top, bottom) => {
   localStorage.setItem('currentPlayers', JSON.stringify(currentPlayers))
 }
 
+//TODO: implement this
 const evaluateKingOfTheHill = () => {}
 
 const swapTeam = (secondStrongest, weak) => {
@@ -444,7 +452,6 @@ const determineWeakerPlayer = team => {
 }
 
 const populateField = (...teams) => {
-  //Thought about doing it with one loop, but I would rather keep the two sides separate.
   let index = teams[0].side === 'top' ? 0 : 1
 
   topPlayers.map(
@@ -469,42 +476,14 @@ const populateField = (...teams) => {
   )
 }
 
-const refreshScores = (topTeam, bottomTeam) => {
-  /**TODO: Maybe this can be shortened */
-  // console.log(topAndBottomPlayers)
-  // topAndBottom.map((side, i) =>
-  //   topAndBottomPlayers[i].map((playerNode, j) => {
-  //     playerNode.textContent =
-  //       topAndBottom[i].players[j] + '(' + topTeam.players[j].score + ')'
-  //   })
-  // )
-
-  topPlayers.map((topPlayerNode, i) => {
-    topPlayerNode.textContent =
-      topTeam.players[i].name + '(' + topTeam.players[i].score + ')'
-  })
-
-  bottomPlayers.map((bottomPlayerNode, i) => {
-    bottomPlayerNode.textContent =
-      bottomTeam.players[i].name + '(' + bottomTeam.players[i].score + ')'
-  })
-}
-
 const startGame = () => {
   if ((isPlayerListChanged && !teamsRandomized) || tableBody.innerHTML === '')
     return alert('Randomize teams first')
   if (currentTeams.length === 1)
     return alert('There must be at least 2 teams to start a game')
 
-  const deleteBtns = Array.from(document.querySelectorAll('.deletePlayer'))
-  deleteBtns.forEach(btn => (btn.disabled = true))
-  startBtn.disabled = true
-  undoBtn.disabled = false
-  redoBtn.disabled = false
-  addBtn.disabled = true
-  resetScoreBtn.disabled = true
+  handleButtonDisables()
   isGameOnGoing = true
-  randomizeBtn.disabled = true
   isPlayerListChanged = false
   teamsRandomized = false
 
@@ -514,9 +493,8 @@ const startGame = () => {
   firstTeam.side = 'top'
   secondTeam.side = 'bottom'
 
-  for (let i = 0; i < 2; i++) {
-    currentTeams[i].activateTeam()
-  }
+  firstTeam.activateTeam()
+  secondTeam.activateTeam()
 
   populateField(firstTeam, secondTeam)
   fillOutTable()
@@ -525,19 +503,9 @@ const startGame = () => {
 const stopGame = () => {
   if (!isGameOnGoing) return
 
-  const deleteBtns = Array.from(document.querySelectorAll('.deletePlayer'))
-
-  resetScoreBtn.disabled = false
-  startBtn.disabled = false
-  undoBtn.disabled = true
-  redoBtn.disabled = true
-  deleteBtns.forEach(btn => (btn.disabled = false))
-  addBtn.disabled = false
-  randomizeBtn.disabled = false
+  handleButtonDisables()
   isGameOnGoing = false
-
-  topPlayers.map(top => (top.textContent = ''))
-  bottomPlayers.map(bottom => (bottom.textContent = ''))
+  fieldNodesArr.map(node => (node.textContent = ''))
 }
 
 const undo = () => {
@@ -548,15 +516,7 @@ const undo = () => {
   const lastAction = parse.pop()
   savedUndoActions = JSON.stringify(parse)
   saveUndoRedo('redo')
-
-  playerParser(lastAction.currentPlayers)
-  teamParser(lastAction.currentTeams)
-
-  currentRound = lastAction.currentRound
-
-  fillOutTable()
-  populateField(currentTeams[0], currentTeams[1])
-  ronudDisplayRender()
+  handleUndoRedoChanges(lastAction)
 }
 
 const redo = () => {
@@ -568,10 +528,13 @@ const redo = () => {
   savedRedoActions = JSON.stringify(parse)
   saveUndoRedo('undo')
 
-  playerParser(forwardAction.currentPlayers)
-  teamParser(forwardAction.currentTeams)
+  handleUndoRedoChanges(forwardAction)
+}
 
-  currentRound = forwardAction.currentRound
+const handleUndoRedoChanges = action => {
+  playerParser(action.currentPlayers)
+  teamParser(action.currentTeams)
+  currentRound = action.currentRound
 
   fillOutTable()
   populateField(currentTeams[0], currentTeams[1])
@@ -579,37 +542,26 @@ const redo = () => {
 }
 
 const saveUndoRedo = undo_redo => {
-  if (undo_redo === 'undo' && savedUndoActions.length === 0)
-    savedUndoActions = JSON.stringify([
-      {
-        currentRound: currentRound,
-        currentPlayers: currentPlayers,
-        currentTeams: currentTeams,
-      },
-    ])
-  else if (undo_redo === 'undo' && savedUndoActions.length > 0) {
+  let obj = {
+    currentRound: currentRound,
+    currentPlayers: currentPlayers,
+    currentTeams: currentTeams,
+  }
+
+  let isFirstUndo = undo_redo === 'undo' && savedUndoActions.length === 0
+  let isFirstRedo = undo_redo === 'redo' && savedRedoActions.length === 0
+  let isUndo = undo_redo === 'undo' && savedUndoActions.length > 0
+  let isRedo = undo_redo === 'redo' && savedRedoActions.length > 0
+
+  if (isFirstUndo) savedUndoActions = JSON.stringify([obj])
+  else if (isUndo) {
     let parsed = JSON.parse(savedUndoActions)
-    parsed.push({
-      currentRound: currentRound,
-      currentPlayers: currentPlayers,
-      currentTeams: currentTeams,
-    })
+    parsed.push(obj)
     savedUndoActions = JSON.stringify(parsed)
-  } else if (undo_redo === 'redo' && savedRedoActions.length === 0)
-    savedRedoActions = JSON.stringify([
-      {
-        currentRound: currentRound,
-        currentPlayers: currentPlayers,
-        currentTeams: currentTeams,
-      },
-    ])
-  else if (undo_redo === 'redo' && savedRedoActions.length > 0) {
+  } else if (isFirstRedo) savedRedoActions = JSON.stringify([obj])
+  else if (isRedo) {
     let parsed = JSON.parse(savedRedoActions)
-    parsed.push({
-      currentRound: currentRound,
-      currentPlayers: currentPlayers,
-      currentTeams: currentTeams,
-    })
+    parsed.push(obj)
     savedRedoActions = JSON.stringify(parsed)
   }
 }
@@ -619,26 +571,6 @@ const resetUndoRedoRounds = () => {
   savedUndoActions = []
   currentRound = 1
   ronudDisplayRender()
-}
-
-const ronudDisplayRender = () => {
-  roundTracker.textContent = 'Round ' + currentRound
-}
-
-const changeMode = e => {
-  gameMode = e.value
-}
-
-const resetScores = () => {
-  currentPlayers.forEach(player => (player.score = 0))
-  fillOutTable()
-  currentRound = 1
-  ronudDisplayRender()
-
-  savedRedoActions = JSON.stringify([])
-  savedUndoActions = JSON.stringify([])
-
-  localStorage.setItem('currentPlayers', JSON.stringify(currentPlayers))
 }
 
 const playerParser = parse => {
@@ -674,4 +606,39 @@ const teamParser = parse => {
       )
     )
   )
+}
+
+const handleButtonDisables = () => {
+  const deleteBtns = Array.from(document.querySelectorAll('.deletePlayer'))
+  deleteBtns.forEach(btn => (btn.disabled = !btn.disabled))
+  resetScoreBtn.disabled = !resetScoreBtn.disabled
+  startBtn.disabled = !startBtn.disabled
+  undoBtn.disabled = !undoBtn.disabled
+  redoBtn.disabled = !redoBtn.disabled
+  addBtn.disabled = !addBtn.disabled
+  randomizeBtn.disabled = !randomizeBtn.disabled
+}
+
+const ronudDisplayRender = () => {
+  roundTracker.textContent = 'Round ' + currentRound
+}
+
+const changeMode = e => {
+  gameMode = e.value
+}
+
+const resetScores = () => {
+  currentPlayers.forEach(player => {
+    player.score = 0
+    player.roundsParticipatedIn = 0
+  })
+
+  fillOutTable()
+  currentRound = 1
+  ronudDisplayRender()
+
+  savedRedoActions = JSON.stringify([])
+  savedUndoActions = JSON.stringify([])
+
+  localStorage.setItem('currentPlayers', JSON.stringify(currentPlayers))
 }
