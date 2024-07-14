@@ -1,30 +1,34 @@
-export default class Player {
-  static ID = 0
-  id
-  name
-  team
-  score
-  justScored
-  roundsParticipatedIn
+import LocalStorage from './LocalStorage.js'
 
-  constructor(
+const Player = (() => {
+  const createPlayer = ({
     name,
     team = 0,
     score = 0,
     justScored = false,
     roundsParticipatedIn = 0,
-    id
-  ) {
-    this.name = name
-    this.team = team
-    this.score = score
-    this.justScored = justScored
-    this.roundsParticipatedIn = roundsParticipatedIn
-    if (id !== undefined) {
-      this.id = id
-    } else {
-      this.id = Player.ID
-      Player.ID++
+    id,
+  }) => {
+    //init ID
+    if (id === undefined) {
+      let localID = JSON.parse(LocalStorage.getID())
+      id = ++localID
+      LocalStorage.setID(localID)
+    }
+
+    return {
+      id,
+      name,
+      team,
+      score,
+      justScored,
+      roundsParticipatedIn,
     }
   }
-}
+
+  return {
+    createPlayer,
+  }
+})()
+
+export default Player
